@@ -1,0 +1,112 @@
+{
+  "info": {
+    "name": "Travel Planner API",
+    "description": "Employee, travel request, policy, rule, and policy validation workflow.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "employeeId", "value": "" },
+    { "key": "policyId", "value": "" },
+    { "key": "travelRequestId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Create employee",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employeeCode\": \"EMP-1001\",\n  \"name\": \"Asha Rao\",\n  \"email\": \"asha@example.com\",\n  \"designation\": \"Engineer\",\n  \"grade\": \"G5\",\n  \"departmentId\": 10\n}"
+        },
+        "url": "{{baseUrl}}/api/employees"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('employee created', () => pm.response.to.have.status(201));",
+          "pm.collectionVariables.set('employeeId', pm.response.json().id);"
+        ]}
+      }]
+    },
+    {
+      "name": "2. Create policy and rules",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"G5 Travel Policy\",\n  \"description\": \"Standard G5 travel limits\",\n  \"policyType\": \"EMPLOYEE_GRADE\",\n  \"version\": 1,\n  \"grade\": \"G5\",\n  \"rules\": [\n    {\n      \"ruleCode\": \"FLIGHT-G5\",\n      \"ruleType\": \"FLIGHT_CLASS\",\n      \"ruleValue\": \"ECONOMY\",\n      \"severity\": \"ERROR\",\n      \"description\": \"G5 flights must be economy\"\n    },\n    {\n      \"ruleCode\": \"ADVANCE-G5\",\n      \"ruleType\": \"ADVANCE_BOOKING\",\n      \"ruleValue\": \"7\",\n      \"severity\": \"WARNING\",\n      \"description\": \"Book at least seven days ahead\"\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/policies"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('policy created', () => pm.response.to.have.status(201));",
+          "pm.collectionVariables.set('policyId', pm.response.json().id);"
+        ]}
+      }]
+    },
+    {
+      "name": "3. Create travel request",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purpose\": \"Client meeting\",\n  \"sourceCity\": \"Pune\",\n  \"destinationCity\": \"Delhi\",\n  \"departureDate\": \"2026-10-15\",\n  \"returnDate\": \"2026-10-18\",\n  \"travelClass\": \"BUSINESS\",\n  \"estimatedCost\": 25000\n}"
+        },
+        "url": "{{baseUrl}}/api/travel-requests/employee/{{employeeId}}"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('travel request created', () => pm.response.to.have.status(201));",
+          "pm.collectionVariables.set('travelRequestId', pm.response.json().id);"
+        ]}
+      }]
+    },
+    {
+      "name": "4. Get travel request",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/travel-requests/{{travelRequestId}}"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('travel request found', () => pm.response.to.have.status(200));"
+        ]}
+      }]
+    },
+    {
+      "name": "5. Validate policy",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/policy-validations/travel-request/{{travelRequestId}}"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('validation completed', () => pm.response.to.have.status(200));",
+          "pm.test('validation has status', () => pm.expect(pm.response.json().overallStatus).to.be.oneOf(['PASSED', 'FAILED', 'WARNING']));"
+        ]}
+      }]
+    },
+    {
+      "name": "6. Get travel request after validation",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/travel-requests/{{travelRequestId}}"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('request status updated', () => pm.expect(pm.response.json().status).to.be.oneOf(['PENDING_APPROVAL', 'FLAGGED']));"
+        ]}
+      }]
+    }
+  ]
+}
