@@ -1,25 +1,20 @@
-package com.company.travelplanner.service;
+package com.company.travelplanner.travel.policy.service;
 
 import com.company.travelplanner.common.enums.TravelRequestStatus;
 import com.company.travelplanner.common.enums.ValidationStatus;
 import com.company.travelplanner.common.exception.PolicyValidationException;
 import com.company.travelplanner.common.exception.ResourceNotFoundException;
-import com.company.travelplanner.dto.PolicyValidationResponse;
-import com.company.travelplanner.dto.PolicyViolationResponse;
-import com.company.travelplanner.entity.PolicyRule;
-import com.company.travelplanner.entity.Booking;
-import com.company.travelplanner.entity.BookingFlag;
-import com.company.travelplanner.entity.PolicyValidation;
-import com.company.travelplanner.entity.PolicyViolation;
-import com.company.travelplanner.entity.TravelPolicy;
-import com.company.travelplanner.repository.PolicyValidationRepository;
-import com.company.travelplanner.repository.TravelPolicyRepository;
-import com.company.travelplanner.validator.PolicyRuleValidator;
-import com.company.travelplanner.entity.TravelRequest;
-import com.company.travelplanner.repository.TravelRequestRepository;
-import com.company.travelplanner.repository.BookingRepository;
-import com.company.travelplanner.common.enums.TravelMode;
-import java.math.BigDecimal;
+import com.company.travelplanner.travel.policy.dto.PolicyValidationResponse;
+import com.company.travelplanner.travel.policy.dto.PolicyViolationResponse;
+import com.company.travelplanner.travel.policy.entity.PolicyRule;
+import com.company.travelplanner.travel.policy.entity.PolicyValidation;
+import com.company.travelplanner.travel.policy.entity.PolicyViolation;
+import com.company.travelplanner.travel.policy.entity.TravelPolicy;
+import com.company.travelplanner.travel.policy.repository.PolicyValidationRepository;
+import com.company.travelplanner.travel.policy.repository.TravelPolicyRepository;
+import com.company.travelplanner.travel.policy.validator.PolicyRuleValidator;
+import com.company.travelplanner.travel.request.entity.TravelRequest;
+import com.company.travelplanner.travel.request.repository.TravelRequestRepository;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.List;
@@ -33,18 +28,15 @@ public class PolicyValidationService {
     private final TravelRequestRepository travelRequestRepository;
     private final TravelPolicyRepository travelPolicyRepository;
     private final PolicyValidationRepository policyValidationRepository;
-    private final BookingRepository bookingRepository;
     private final List<PolicyRuleValidator> validators;
 
     public PolicyValidationService(TravelRequestRepository travelRequestRepository,
                                    TravelPolicyRepository travelPolicyRepository,
                                    PolicyValidationRepository policyValidationRepository,
-                                   BookingRepository bookingRepository,
                                    List<PolicyRuleValidator> validators) {
         this.travelRequestRepository = travelRequestRepository;
         this.travelPolicyRepository = travelPolicyRepository;
         this.policyValidationRepository = policyValidationRepository;
-        this.bookingRepository = bookingRepository;
         this.validators = validators;
     }
 
@@ -93,18 +85,10 @@ public class PolicyValidationService {
                 ? TravelRequestStatus.PENDING_APPROVAL
                 : TravelRequestStatus.FLAGGED);
         PolicyValidation saved = policyValidationRepository.save(validation);
-        Booking booking = bookingRepository.findByTravelRequestId(request.getId()).orElseGet(Booking::new);
-        booking.setTravelRequest(request);
-        booking.setValid(true);
-        booking.setExpectedCost(request.getEstimatedCost());
-        booking.setExpense(request.getExpense());
-        booking.setFlag(calculateFlag(request.getTravelMode(), request.getEstimatedCost(), request.getExpense()));
-        booking.setBookedAt(LocalDateTime.now());
-        Booking savedBooking = bookingRepository.save(booking);
-        return toResponse(saved, savedBooking);
+        return toResponse(saved);
     }
 
-    private PolicyValidationResponse toResponse(PolicyValidation validation, Booking booking) {
+    private PolicyValidationResponse toResponse(PolicyValidation validation) {
         List<PolicyViolationResponse> violations = validation.getViolations().stream()
                 .map(this::toResponse)
                 .toList();
@@ -114,23 +98,7 @@ public class PolicyValidationService {
                 validation.getPolicy().getId(),
                 validation.getOverallStatus(),
                 validation.getValidatedAt(),
-                violations,
-                booking.getId(),
-                booking.isValid(),
-                booking.getFlag().name());
-    }
-
-    private BookingFlag calculateFlag(TravelMode mode, BigDecimal expectedCost, BigDecimal expense) {
-        if (mode == TravelMode.FLIGHT || expectedCost == null || expense.compareTo(expectedCost) <= 0) {
-            return BookingFlag.G;
-        }
-        BigDecimal overagePercent = expense.subtract(expectedCost)
-                .multiply(BigDecimal.valueOf(100))
-                .divide(expectedCost, 4, java.math.RoundingMode.HALF_UP);
-        if (overagePercent.compareTo(BigDecimal.valueOf(30)) <= 0) {
-            return BookingFlag.G;
-        }
-        return overagePercent.compareTo(BigDecimal.valueOf(75)) <= 0 ? BookingFlag.Y : BookingFlag.R;
+                violations);
     }
 
     private PolicyViolationResponse toResponse(PolicyViolation violation) {

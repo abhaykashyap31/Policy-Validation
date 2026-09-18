@@ -1,8 +1,9 @@
-package com.company.travelplanner.entity;
+package com.company.travelplanner.travel.request.entity;
 
 import com.company.travelplanner.common.enums.TravelClass;
 import com.company.travelplanner.common.enums.TravelMode;
 import com.company.travelplanner.common.enums.TravelRequestStatus;
+import com.company.travelplanner.entity.Employee;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -30,30 +31,24 @@ public class TravelRequest {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    @Column
+    @Column(nullable = false)
     private String purpose;
     @Column(nullable = false)
     private String sourceCity;
     @Column(nullable = false)
     private String destinationCity;
-    @Column
+    @Column(nullable = false)
     private LocalDate departureDate;
-    @Column
+    @Column(nullable = false)
     private LocalDate returnDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "travel_mode", nullable = false)
+    private TravelMode travelMode;
 
     @Enumerated(EnumType.STRING)
     @Column
     private TravelClass travelClass;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TravelMode travelMode;
-
-    @Column(precision = 12, scale = 2, nullable = false)
-    private BigDecimal distance;
-
-    @Column(precision = 12, scale = 2, nullable = false)
-    private BigDecimal expense;
 
     @Column(precision = 12, scale = 2)
     private BigDecimal estimatedCost;
@@ -78,14 +73,10 @@ public class TravelRequest {
     public void setDepartureDate(LocalDate departureDate) { this.departureDate = departureDate; }
     public LocalDate getReturnDate() { return returnDate; }
     public void setReturnDate(LocalDate returnDate) { this.returnDate = returnDate; }
-    public TravelClass getTravelClass() { return travelClass; }
-    public void setTravelClass(TravelClass travelClass) { this.travelClass = travelClass; }
     public TravelMode getTravelMode() { return travelMode; }
     public void setTravelMode(TravelMode travelMode) { this.travelMode = travelMode; }
-    public BigDecimal getDistance() { return distance; }
-    public void setDistance(BigDecimal distance) { this.distance = distance; }
-    public BigDecimal getExpense() { return expense; }
-    public void setExpense(BigDecimal expense) { this.expense = expense; }
+    public TravelClass getTravelClass() { return travelClass; }
+    public void setTravelClass(TravelClass travelClass) { this.travelClass = travelClass; }
     public BigDecimal getEstimatedCost() { return estimatedCost; }
     public void setEstimatedCost(BigDecimal estimatedCost) { this.estimatedCost = estimatedCost; }
     public TravelRequestStatus getStatus() { return status; }

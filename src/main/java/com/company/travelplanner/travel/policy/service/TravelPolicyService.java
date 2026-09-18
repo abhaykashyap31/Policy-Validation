@@ -1,14 +1,14 @@
-package com.company.travelplanner.service;
+package com.company.travelplanner.travel.policy.service;
 
 import com.company.travelplanner.common.exception.PolicyValidationException;
 import com.company.travelplanner.common.exception.ResourceNotFoundException;
-import com.company.travelplanner.dto.PolicyRuleRequest;
-import com.company.travelplanner.dto.PolicyRuleResponse;
-import com.company.travelplanner.dto.TravelPolicyRequest;
-import com.company.travelplanner.dto.TravelPolicyResponse;
-import com.company.travelplanner.entity.PolicyRule;
-import com.company.travelplanner.entity.TravelPolicy;
-import com.company.travelplanner.repository.TravelPolicyRepository;
+import com.company.travelplanner.travel.policy.dto.PolicyRuleRequest;
+import com.company.travelplanner.travel.policy.dto.PolicyRuleResponse;
+import com.company.travelplanner.travel.policy.dto.TravelPolicyRequest;
+import com.company.travelplanner.travel.policy.dto.TravelPolicyResponse;
+import com.company.travelplanner.travel.policy.entity.PolicyRule;
+import com.company.travelplanner.travel.policy.entity.TravelPolicy;
+import com.company.travelplanner.travel.policy.repository.TravelPolicyRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,50 +56,6 @@ public class TravelPolicyService {
         TravelPolicy policy = travelPolicyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Travel policy not found: " + id));
         return toResponse(policy);
-    }
-
-    @Transactional(readOnly = true)
-    public List<TravelPolicyResponse> getAllPolicies() {
-        return travelPolicyRepository.findAll().stream().map(this::toResponse).toList();
-    }
-
-    @Transactional
-    public TravelPolicyResponse updatePolicy(Long id, TravelPolicyRequest request) {
-        validate(request);
-        TravelPolicy policy = travelPolicyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Travel policy not found: " + id));
-        policy.setName(request.name());
-        policy.setDescription(request.description());
-        policy.setPolicyType(request.policyType());
-        policy.setVersion(request.version() == null ? policy.getVersion() : request.version());
-        policy.setEffectiveFrom(request.effectiveFrom());
-        policy.setEffectiveTo(request.effectiveTo());
-        policy.setGrade(request.grade());
-        if (request.active() != null) {
-            policy.setActive(request.active());
-        }
-        policy.getRules().clear();
-        if (request.rules() != null) {
-            for (PolicyRuleRequest ruleRequest : request.rules()) {
-                PolicyRule rule = new PolicyRule();
-                rule.setPolicy(policy);
-                rule.setRuleCode(ruleRequest.ruleCode());
-                rule.setRuleType(ruleRequest.ruleType());
-                rule.setRuleValue(ruleRequest.ruleValue());
-                rule.setSeverity(ruleRequest.severity());
-                rule.setDescription(ruleRequest.description());
-                rule.setActive(ruleRequest.active() == null || ruleRequest.active());
-                policy.getRules().add(rule);
-            }
-        }
-        return toResponse(travelPolicyRepository.save(policy));
-    }
-
-    @Transactional
-    public void deletePolicy(Long id) {
-        TravelPolicy policy = travelPolicyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Travel policy not found: " + id));
-        travelPolicyRepository.delete(policy);
     }
 
     private void validate(TravelPolicyRequest request) {

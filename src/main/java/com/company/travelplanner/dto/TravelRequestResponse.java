@@ -1,19 +1,18 @@
 package com.company.travelplanner.dto;
 
-import com.company.travelplanner.common.enums.TravelClass;
-import com.company.travelplanner.common.enums.TravelRequestStatus;
+import com.company.travelplanner.common.enums.TravelMode;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 public record TravelRequestResponse(
-        Long id,
-        Long employeeId,
-        String purpose,
+        Long travelRequestId,
         String sourceCity,
         String destinationCity,
-        LocalDate departureDate,
-        LocalDate returnDate,
-        TravelClass travelClass,
-        BigDecimal estimatedCost,
-        TravelRequestStatus status) {
+        BigDecimal distance,
+        TravelMode mode,
+        String employeeGrade,
+        BigDecimal expense,
+        Long bookingId,
+        BigDecimal expectedExpense,
+        char flag,
+        boolean valid) {
 }

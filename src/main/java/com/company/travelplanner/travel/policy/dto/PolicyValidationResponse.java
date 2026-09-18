@@ -1,4 +1,4 @@
-package com.company.travelplanner.dto;
+package com.company.travelplanner.travel.policy.dto;
 
 import com.company.travelplanner.common.enums.ValidationStatus;
 import java.time.LocalDateTime;
@@ -10,8 +10,5 @@ public record PolicyValidationResponse(
         Long policyId,
         ValidationStatus overallStatus,
         LocalDateTime validatedAt,
-        List<PolicyViolationResponse> violations,
-        Long bookingId,
-        boolean bookingValid,
-        String bookingFlag) {
+        List<PolicyViolationResponse> violations) {
 }
