@@ -4,22 +4,34 @@ Spring Boot service for employee travel requests and policy validation.
 
 ## Modules
 
-- `employee`: employee master data
-- `travelrequest`: proposed employee trips
-- `policy`: travel policies, rules, validators, and validation results
+- `employee`: employee master data used to select travel policies. The employee `grade` is required for policy selection during validation. Employee codes and emails are unique in PostgreSQL.
+- `travelrequest`: proposed employee trips and workflow status. Requests are checked for required fields, valid date order, and non-negative estimated cost before persistence.
+- `policy`: travel policies, rules, validators, and validation results. Supported rule types are `FLIGHT_CLASS`, `ADVANCE_BOOKING`, and `HOTEL_LIMIT`. The current request model has no hotel-specific amount, so `HOTEL_LIMIT` compares against `estimatedCost`.
 - `booking`: reserved for booking workflows
 - `approval`: reserved for approval workflows
 
 ## Endpoints
 
-- `POST /api/employees`
-- `GET /api/employees/{id}`
-- `POST /api/travel-requests/employee/{employeeId}`
-- `GET /api/travel-requests/{id}`
-- `POST /api/policies`
-- `GET /api/policies/{id}`
-- `POST /api/policy-validations`
-- `POST /api/policy-validations/travel-request/{travelRequestId}`
+### Employee
+
+- `POST /api/employees` — create an employee
+- `GET /api/employees` — list all employees
+- `GET /api/employees/{id}` — get employee by id
+- `GET /api/employees/code/{employeeCode}` — get employee by code
+- `PUT /api/employees/{id}` — update an employee
+- `DELETE /api/employees/{id}` — delete an employee
+
+### Travel Request
+
+- `POST /api/travel-requests/employee/{employeeId}` — create a draft request
+- `GET /api/travel-requests/{id}` — get request status
+
+### Policy
+
+- `POST /api/policies` — create a policy with nested rules
+- `GET /api/policies/{id}` — get a policy and its rules
+- `POST /api/policy-validations` — validate using `{ "travelRequestId": 1 }`
+- `POST /api/policy-validations/travel-request/{travelRequestId}` — validate a request by path id
 
 The runtime database is PostgreSQL. Tests use H2 so the Spring context can start without an external database.
 
