@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import Booking.GDS.service.Corporate.Travel.Dto.TravelDto;
 import Booking.GDS.service.Corporate.Travel.Entities.Employee;
 import Booking.GDS.service.Corporate.Travel.Entities.Travel;
 import Booking.GDS.service.Corporate.Travel.Repo.TravelRepository;
@@ -35,42 +36,31 @@ public class TravelController {
 
     @CacheEvict(value = "allTravel", allEntries = true)
     @PostMapping("/book")
-    public String TravelRegister(@RequestBody Map<String,Object> body){
+    public String TravelRegister(@RequestBody TravelDto travelDto){
 
-
-        String source = (String)body.get("Source");
-        String Destination = (String)body.get("Destination");
-        int Distance = (Integer)body.get("Distance");
-        String Mode = (String)body.get("Mode");
-        Integer Emp_id = (Integer)body.get("Emp_id");
-        int Expense = (int)body.get("Expense");
-        String date = (String)body.get("Date");
-
-        Optional<Employee> emp = employeeRepository.findById(Emp_id);
-
-        if(!emp.isPresent())
+        Optional<Employee> emp = employeeRepository.findById(travelDto.getEmpId());
+         if(!emp.isPresent())
         {
-            log.debug("cannot find employee with id : {}", Emp_id);
+            log.debug("cannot find employee with id : {}",travelDto.getEmpId());
             return "Connot find employee";
         }
 
         Employee employee = emp.get();
-
         Travel t = new Travel();
 
         t.setGrade(employee.getGrade());
-        t.setDate(LocalDate.parse(date));
-        t.setFromLocation(source);
+        t.setDate(LocalDate.parse(travelDto.getDate()));
+        t.setFromLocation(travelDto.getSource());
         t.setTravelStatus("PENDING");
-        t.setToLocation(Destination);
-        t.setDistance(Distance);
-        t.setMode(Mode);
-        t.setExpense(Expense);
-        t.setEmpId(Emp_id);
-        
-        log.info("saving travel for employee {}",Emp_id);
-        travelRepository.save(t);
+        t.setToLocation(travelDto.getDestination());
+        t.setDistance(travelDto.getDistance());
+        t.setMode(travelDto.getMode());
+        t.setExpense(travelDto.getExpense());
+        t.setEmpId(travelDto.getEmpId());
 
+        travelRepository.save(t);
+        
+        log.info("saving travel for employee {}",travelDto.getEmpId());
         return "Travel booking Done";
     }
 
