@@ -33,7 +33,7 @@ Spring Boot service for employee travel requests and policy validation.
 - `POST /api/policy-validations` — validate using `{ "travelRequestId": 1 }`
 - `POST /api/policy-validations/travel-request/{travelRequestId}` — validate a request by path id
 
-The runtime database is PostgreSQL. Tests use H2 so the Spring context can start without an external database.
+The runtime database is PostgreSQL. Tests use H2 so the Spring context can start without an external database. The policy-validation service listens on port `8081` by default so the booking service can listen on `8080`.
 
 ## Local PostgreSQL setup
 
@@ -54,7 +54,7 @@ psql -h localhost -U "$DB_USERNAME" -d travel_planner -c 'select 1;'
 ./mvnw spring-boot:run
 ```
 
-Replace the password placeholder with the real PostgreSQL password; do not use the placeholder literally. Keep the Spring Boot terminal running while sending Postman requests. The API is ready when the startup logs show that port `8080` is listening.
+Replace the password placeholder with the real PostgreSQL password; do not use the placeholder literally. Keep the Spring Boot terminal running while sending requests. The policy API is ready when the startup logs show that port `8081` is listening.
 
 Flyway applies `src/main/resources/db/migration/V1__create_travel_planner_schema.sql` automatically on startup. Since the tables may already exist, Flyway baselines the existing database at version 1; Hibernate then validates the schema rather than creating or altering tables.
 
@@ -89,6 +89,26 @@ Validate it using the returned travel request id:
 ```bash
 curl -X POST http://localhost:8080/api/policy-validations/travel-request/1
 ```
+
+### Booking integration
+
+The booking service sends each new booking to the policy service automatically. Configure its target with `POLICY_VALIDATION_URL` when the policy service is not running at `http://localhost:8081`.
+
+The booking service accepts the existing payload at `POST http://localhost:8080/travel/book`:
+
+```json
+{
+	"source": "Pune",
+	"destination": "Delhi",
+	"distance": 1450,
+	"mode": "TRAIN",
+	"empId": 1,
+	"expense": 18000,
+	"date": "2026-10-15"
+}
+```
+
+It forwards the travel data and employee grade to `POST http://localhost:8081/api/policy-validations/booking`. The response contains policy violations, `overallStatus`, and the booking `G`, `Y`, or `R` flag.
 
 ## Postman
 

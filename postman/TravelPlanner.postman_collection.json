@@ -5,9 +5,12 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "policyBaseUrl", "value": "http://localhost:8081" },
+    { "key": "bookingBaseUrl", "value": "http://localhost:8080" },
     { "key": "token", "value": "" },
     { "key": "employeeId", "value": "" },
+    { "key": "bookingEmployeeId", "value": "" },
     { "key": "policyId", "value": "" },
     { "key": "travelRequestId", "value": "" },
     { "key": "bookingId", "value": "" }
@@ -19,11 +22,11 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@company.com\",\n  \"password\": \"Admin@123\"\n}" },
-        "url": "{{baseUrl}}/api/auth/login"
+        "url": "{{policyBaseUrl}}/api/auth/login"
       },
       "event": [{ "listen": "test", "script": { "exec": [
         "pm.test('login succeeded', () => pm.response.to.have.status(200));",
-        "pm.collectionVariables.set('token', pm.response.json().token);"
+        "if (pm.response.code === 200) pm.collectionVariables.set('token', pm.response.json().token);"
       ]}}]
     },
     {
@@ -32,21 +35,21 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
         "body": { "mode": "raw", "raw": "{\n  \"employeeCode\": \"EMP-1001\",\n  \"name\": \"Asha Rao\",\n  \"email\": \"asha@example.com\",\n  \"designation\": \"Engineer\",\n  \"grade\": \"G5\",\n  \"departmentId\": 10\n}" },
-        "url": "{{baseUrl}}/api/employees"
+        "url": "{{policyBaseUrl}}/api/employees"
       },
       "event": [{ "listen": "test", "script": { "exec": [
         "pm.test('employee created', () => pm.response.to.have.status(201));",
-        "pm.collectionVariables.set('employeeId', pm.response.json().id);"
+        "if (pm.response.code === 201) pm.collectionVariables.set('employeeId', pm.response.json().id);"
       ]}}]
     },
     {
       "name": "3. List employees",
-      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/employees" },
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/employees" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('employees listed', () => pm.response.to.have.status(200));"] }}]
     },
     {
       "name": "4. Get employee",
-      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/employees/{{employeeId}}" },
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/employees/{{employeeId}}" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('employee found', () => pm.response.to.have.status(200));"] }}]
     },
     {
@@ -55,7 +58,7 @@
         "method": "PUT",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
         "body": { "mode": "raw", "raw": "{\n  \"employeeCode\": \"EMP-1001\",\n  \"name\": \"Asha Rao Updated\",\n  \"email\": \"asha.updated@example.com\",\n  \"designation\": \"Senior Engineer\",\n  \"grade\": \"G5\",\n  \"departmentId\": 10,\n  \"active\": true\n}" },
-        "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+        "url": "{{policyBaseUrl}}/api/employees/{{employeeId}}"
       },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('employee updated', () => pm.response.to.have.status(200));"] }}]
     },
@@ -65,7 +68,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
         "body": { "mode": "raw", "raw": "{\n  \"name\": \"G5 Travel Policy\",\n  \"description\": \"Standard G5 travel limits\",\n  \"policyType\": \"EMPLOYEE_GRADE\",\n  \"version\": 1,\n  \"grade\": \"G5\",\n  \"active\": true,\n  \"rules\": []\n}" },
-        "url": "{{baseUrl}}/api/policies"
+        "url": "{{policyBaseUrl}}/api/policies"
       },
       "event": [{ "listen": "test", "script": { "exec": [
         "pm.test('policy created', () => pm.response.to.have.status(201));",
@@ -74,12 +77,12 @@
     },
     {
       "name": "7. List policies",
-      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/policies" },
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/policies" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('policies listed', () => pm.response.to.have.status(200));"] }}]
     },
     {
       "name": "8. Get policy",
-      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/policies/{{policyId}}" },
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/policies/{{policyId}}" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('policy found', () => pm.response.to.have.status(200));"] }}]
     },
     {
@@ -88,7 +91,7 @@
         "method": "PUT",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
         "body": { "mode": "raw", "raw": "{\n  \"name\": \"G5 Travel Policy Updated\",\n  \"description\": \"Updated G5 travel limits\",\n  \"policyType\": \"EMPLOYEE_GRADE\",\n  \"version\": 2,\n  \"grade\": \"G5\",\n  \"active\": true,\n  \"rules\": []\n}" },
-        "url": "{{baseUrl}}/api/policies/{{policyId}}"
+        "url": "{{policyBaseUrl}}/api/policies/{{policyId}}"
       },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('policy updated', () => pm.response.to.have.status(200));"] }}]
     },
@@ -98,7 +101,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
         "body": { "mode": "raw", "raw": "{\n  \"sourceCity\": \"Pune\",\n  \"destinationCity\": \"Delhi\",\n  \"distance\": 1500,\n  \"travelMode\": \"TRAIN\",\n  \"employeeGrade\": \"G5\",\n  \"expense\": 18000\n}" },
-        "url": "{{baseUrl}}/api/travel-requests"
+        "url": "{{policyBaseUrl}}/api/travel-requests"
       },
       "event": [{ "listen": "test", "script": { "exec": [
         "pm.test('travel request created', () => pm.response.to.have.status(201));",
@@ -109,38 +112,81 @@
       ]}}]
     },
     {
-      "name": "11. List travel requests",
-      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/travel-requests" },
+      "name": "11. Register booking employee",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Asha Rao\",\n  \"department\": \"IT\",\n  \"email\": \"asha.booking@example.com\",\n  \"password\": \"password\",\n  \"grade\": \"G5\"\n}" },
+        "url": "{{bookingBaseUrl}}/auth/register"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('booking employee registered', () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));"
+      ] }}]
+    },
+    {
+      "name": "12. Find booking employee id",
+      "request": { "method": "GET", "header": [], "url": "{{bookingBaseUrl}}/auth/employee" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('booking employees listed', () => pm.response.to.have.status(200));",
+        "const employee = pm.response.json().find(item => item.email === 'asha.booking@example.com');",
+        "pm.expect(employee).to.exist;",
+        "pm.collectionVariables.set('bookingEmployeeId', employee.id);"
+      ] }}]
+    },
+    {
+      "name": "13. Create booking",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"source\": \"Pune\",\n  \"destination\": \"Delhi\",\n  \"distance\": 1500,\n  \"mode\": \"TRAIN\",\n  \"empId\": {{bookingEmployeeId}},\n  \"expense\": 18000,\n  \"date\": \"2026-10-15\"\n}" },
+        "url": "{{bookingBaseUrl}}/travel/book"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('booking created', () => pm.response.to.have.status(200));",
+        "pm.test('booking response returned', () => pm.expect(pm.response.text()).to.match(/Travel booking/));"
+      ] }}]
+    },
+    {
+      "name": "14. List bookings",
+      "request": { "method": "GET", "header": [], "url": "{{bookingBaseUrl}}/travel/allTravel" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('bookings listed', () => pm.response.to.have.status(200));",
+        "pm.test('approved booking exists', () => pm.expect(pm.response.json().some(item => item.travelStatus === 'APPROVED')).to.eql(true));"
+      ] }}]
+    },
+    {
+      "name": "15. List travel requests",
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/travel-requests" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('travel requests listed', () => pm.response.to.have.status(200));"] }}]
     },
     {
-      "name": "12. Get travel request",
-      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/travel-requests/{{travelRequestId}}" },
+      "name": "16. Get travel request",
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/travel-requests/{{travelRequestId}}" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('travel request found', () => pm.response.to.have.status(200));"] }}]
     },
     {
-      "name": "13. Update travel request",
+      "name": "17. Update travel request",
       "request": {
         "method": "PUT",
         "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
         "body": { "mode": "raw", "raw": "{\n  \"sourceCity\": \"Pune\",\n  \"destinationCity\": \"Delhi\",\n  \"distance\": 1500,\n  \"travelMode\": \"TRAIN\",\n  \"employeeGrade\": \"G5\",\n  \"expense\": 20000\n}" },
-        "url": "{{baseUrl}}/api/travel-requests/{{travelRequestId}}"
+        "url": "{{policyBaseUrl}}/api/travel-requests/{{travelRequestId}}"
       },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('travel request updated', () => pm.response.to.have.status(200));"] }}]
     },
     {
-      "name": "14. Delete travel request",
-      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/travel-requests/{{travelRequestId}}" },
+      "name": "18. Delete travel request",
+      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/travel-requests/{{travelRequestId}}" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('travel request deleted', () => pm.response.to.have.status(204));"] }}]
     },
     {
-      "name": "15. Delete policy",
-      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/policies/{{policyId}}" },
+      "name": "19. Delete policy",
+      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/policies/{{policyId}}" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('policy deleted', () => pm.response.to.have.status(204));"] }}]
     },
     {
-      "name": "16. Delete employee",
-      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/employees/{{employeeId}}" },
+      "name": "20. Delete employee",
+      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{policyBaseUrl}}/api/employees/{{employeeId}}" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('employee deleted', () => pm.response.to.have.status(204));"] }}]
     }
   ]
