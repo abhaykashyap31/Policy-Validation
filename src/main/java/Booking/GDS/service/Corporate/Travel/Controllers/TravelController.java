@@ -3,6 +3,7 @@ package Booking.GDS.service.Corporate.Travel.Controllers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
 import Booking.GDS.service.Corporate.Travel.Dto.TravelDto;
 import Booking.GDS.service.Corporate.Travel.Entities.Employee;
@@ -33,6 +35,9 @@ public class TravelController {
     @Autowired 
     private EmployeeRepository employeeRepository;
 
+    @Autowired 
+    private RestTemplate restTemplate;
+
 
     @CacheEvict(value = "allTravel", allEntries = true)
     @PostMapping("/book")
@@ -48,6 +53,9 @@ public class TravelController {
         Employee employee = emp.get();
         Travel t = new Travel();
 
+        String id = UUID.randomUUID().toString().replace("-", "");
+
+        t.setId(id);
         t.setGrade(employee.getGrade());
         t.setDate(LocalDate.parse(travelDto.getDate()));
         t.setFromLocation(travelDto.getSource());
@@ -59,7 +67,25 @@ public class TravelController {
         t.setEmpId(travelDto.getEmpId());
 
         travelRepository.save(t);
-        
+
+        Map<String, Object> request = new HashMap<>();
+
+        request.put("source", travelDto.getSource());
+        request.put("destination",travelDto.getDestination());
+        request.put("distance",travelDto.getDistance());
+        request.put("mode", travelDto.getMode());
+        request.put("expense", travelDto.getExpense());
+        request.put("date", travelDto.getDate());
+        request.put("employeeGrade", employee.getGrade());
+        request.put("travelId",id);
+
+        // Call another API
+        String url = "http://localhost:8081/api/validate";
+
+        ResponseEntity<String> response =
+            restTemplate.postForEntity(url, request, String.class);
+
+
         log.info("saving travel for employee {}",travelDto.getEmpId());
         return "Travel booking Done";
     }
@@ -68,15 +94,21 @@ public class TravelController {
     @PatchMapping("/status")
     public String ToggleStatus(@RequestBody Map<String, Object> body){
 
-        String status = (String)body.get("Status");
-        int id = (Integer)body.get("Id");
+        boolean status = (boolean)body.get("bookingValid");
+        int id = (Integer)body.get("bookingId");
+        String flag = (String)body.get("bookingFlag");
 
         Optional<Travel> travel = travelRepository.findById(id);
 
         if(travel.isPresent())
         {
             Travel t = travel.get();
-            t.setTravelStatus(status);
+            
+            if(status)
+            t.setTravelStatus("APPROVED");
+            else
+            t.setTravelStatus("REJECTED");
+
             travelRepository.save(t);   
         }
         else{
