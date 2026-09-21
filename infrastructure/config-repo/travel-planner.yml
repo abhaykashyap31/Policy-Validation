@@ -1,0 +1,17 @@
+server:
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# Service-specific values can be promoted here without rebuilding the application.
+travel-planner:
+  policy-validation:
+    enabled: true
+
+# Use Eureka names for inter-service calls; never put host IPs in client code.
+remote-services:
+  policy-service-name: ${POLICY_SERVICE_NAME:policy-service}

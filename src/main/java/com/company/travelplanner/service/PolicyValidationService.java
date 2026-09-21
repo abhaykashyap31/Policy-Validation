@@ -18,56 +18,35 @@ import com.company.travelplanner.common.exception.ResourceNotFoundException;
 import com.company.travelplanner.dto.BookingPolicyValidationRequest;
 import com.company.travelplanner.dto.BookingPolicyValidationResponse;
 import com.company.travelplanner.dto.BookingPolicyValidationResponse.PolicyValidationSummary;
-import com.company.travelplanner.dto.PolicyValidationResponse;
-import com.company.travelplanner.dto.PolicyViolationResponse;
-import com.company.travelplanner.entity.Booking;
 import com.company.travelplanner.entity.BookingFlag;
-import com.company.travelplanner.entity.Employee;
 import com.company.travelplanner.entity.PolicyRule;
 import com.company.travelplanner.entity.PolicyValidation;
-import com.company.travelplanner.entity.PolicyViolation;
 import com.company.travelplanner.entity.TravelPolicy;
 import com.company.travelplanner.entity.TravelRequest;
-import com.company.travelplanner.repository.BookingRepository;
-import com.company.travelplanner.repository.EmployeeRepository;
-import com.company.travelplanner.repository.PolicyValidationRepository;
 import com.company.travelplanner.repository.TravelPolicyRepository;
-import com.company.travelplanner.repository.TravelRequestRepository;
 import com.company.travelplanner.validator.PolicyRuleValidator;
 
 @Service
 public class PolicyValidationService {
 
-    private final TravelRequestRepository travelRequestRepository;
     private final TravelPolicyRepository travelPolicyRepository;
-    private final PolicyValidationRepository policyValidationRepository;
-    private final BookingRepository bookingRepository;
-    private final EmployeeRepository employeeRepository;
     private final List<PolicyRuleValidator> validators;
 
-    public PolicyValidationService(TravelRequestRepository travelRequestRepository,
-                                   TravelPolicyRepository travelPolicyRepository,
-                                   PolicyValidationRepository policyValidationRepository,
-                                   BookingRepository bookingRepository,
-                                   EmployeeRepository employeeRepository,
+    public PolicyValidationService(TravelPolicyRepository travelPolicyRepository,
                                    List<PolicyRuleValidator> validators) {
-        this.travelRequestRepository = travelRequestRepository;
         this.travelPolicyRepository = travelPolicyRepository;
-        this.policyValidationRepository = policyValidationRepository;
-        this.bookingRepository = bookingRepository;
-        this.employeeRepository = employeeRepository;
         this.validators = validators;
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public BookingPolicyValidationResponse validateBooking(BookingPolicyValidationRequest request) {
         validateBookingRequest(request);
-        Employee employee = employeeRepository.findFirstByGradeAndActiveTrue(request.employeeGrade())
+        TravelPolicy policy = travelPolicyRepository.findFirstByGradeAndActiveTrue(request.employeeGrade())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Active employee not found for grade: " + request.employeeGrade()));
+                        "Active policy not found for grade: " + request.employeeGrade()));
+        validatePolicyDates(policy);
 
         TravelRequest travelRequest = new TravelRequest();
-        travelRequest.setEmployee(employee);
         travelRequest.setSourceCity(request.source());
         travelRequest.setDestinationCity(request.destination());
         travelRequest.setDistance(request.distance());
@@ -80,36 +59,20 @@ public class PolicyValidationService {
         travelRequest.setCreatedAt(now);
         travelRequest.setUpdatedAt(now);
 
-        TravelRequest savedRequest = travelRequestRepository.save(travelRequest);
-        PolicyValidationResponse validation = validate(savedRequest.getId());
+        PolicyValidation validation = evaluate(travelRequest, policy);
+        boolean valid = validation.getOverallStatus() == ValidationStatus.PASSED;
+        String flag = calculateFlag(request.mode(), travelRequest.getEstimatedCost(), request.expense()).name();
         return new BookingPolicyValidationResponse(
             new PolicyValidationSummary(
-                validation.overallStatus(),
-                validation.bookingValid(),
-                validation.bookingFlag()),
-                String.valueOf(validation.bookingId()),
-            validation.bookingFlag(),
-            validation.bookingValid());
+                validation.getOverallStatus(),
+                valid,
+                flag),
+                null,
+            flag,
+            valid);
     }
 
-    @Transactional
-    public PolicyValidationResponse validate(Long travelRequestId) {
-        if (travelRequestId == null) {
-            throw new PolicyValidationException("Travel request id is required");
-        }
-        TravelRequest request = travelRequestRepository.findById(travelRequestId)
-                .orElseThrow(() -> new ResourceNotFoundException("Travel request not found: " + travelRequestId));
-        if (request.getEmployee().getGrade() == null) {
-            throw new PolicyValidationException("Employee grade is required to select a policy");
-        }
-        TravelPolicy policy = travelPolicyRepository.findFirstByGradeAndActiveTrue(request.getEmployee().getGrade())
-                .orElseThrow(() -> new ResourceNotFoundException("Active policy not found for grade: " + request.getEmployee().getGrade()));
-        LocalDate today = LocalDate.now();
-        if (policy.getEffectiveFrom() != null && today.isBefore(policy.getEffectiveFrom())
-            || policy.getEffectiveTo() != null && today.isAfter(policy.getEffectiveTo())) {
-            throw new PolicyValidationException("The active policy is outside its effective date range");
-        }
-
+    private PolicyValidation evaluate(TravelRequest request, TravelPolicy policy) {
         PolicyValidation validation = new PolicyValidation();
         validation.setTravelRequest(request);
         validation.setPolicy(policy);
@@ -136,32 +99,15 @@ public class PolicyValidationService {
         request.setStatus(validation.getViolations().isEmpty()
                 ? TravelRequestStatus.PENDING_APPROVAL
                 : TravelRequestStatus.FLAGGED);
-        PolicyValidation saved = policyValidationRepository.save(validation);
-        Booking booking = bookingRepository.findByTravelRequestId(request.getId()).orElseGet(Booking::new);
-        booking.setTravelRequest(request);
-        booking.setValid(validation.getViolations().isEmpty());
-        booking.setExpectedCost(request.getEstimatedCost());
-        booking.setExpense(request.getExpense());
-        booking.setFlag(calculateFlag(request.getTravelMode(), request.getEstimatedCost(), request.getExpense()));
-        booking.setBookedAt(LocalDateTime.now());
-        Booking savedBooking = bookingRepository.save(booking);
-        return toResponse(saved, savedBooking);
-    }
+        return validation;
+        }
 
-    private PolicyValidationResponse toResponse(PolicyValidation validation, Booking booking) {
-        List<PolicyViolationResponse> violations = validation.getViolations().stream()
-                .map(this::toResponse)
-                .toList();
-        return new PolicyValidationResponse(
-                validation.getId(),
-                validation.getTravelRequest().getId(),
-                validation.getPolicy().getId(),
-                validation.getOverallStatus(),
-                validation.getValidatedAt(),
-                violations,
-                booking.getId(),
-                booking.isValid(),
-                booking.getFlag().name());
+        private void validatePolicyDates(TravelPolicy policy) {
+        LocalDate today = LocalDate.now();
+        if (policy.getEffectiveFrom() != null && today.isBefore(policy.getEffectiveFrom())
+            || policy.getEffectiveTo() != null && today.isAfter(policy.getEffectiveTo())) {
+            throw new PolicyValidationException("The active policy is outside its effective date range");
+        }
     }
 
     private void validateBookingRequest(BookingPolicyValidationRequest request) {
@@ -202,12 +148,4 @@ public class PolicyValidationService {
         return overagePercent.compareTo(BigDecimal.valueOf(75)) <= 0 ? BookingFlag.Y : BookingFlag.R;
     }
 
-    private PolicyViolationResponse toResponse(PolicyViolation violation) {
-        return new PolicyViolationResponse(
-                violation.getPolicyRule().getRuleCode(),
-                violation.getMessage(),
-                violation.getActualValue(),
-                violation.getAllowedValue(),
-                violation.getSeverity());
-    }
 }
