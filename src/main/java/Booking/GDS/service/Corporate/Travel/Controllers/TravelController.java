@@ -1,5 +1,6 @@
 package Booking.GDS.service.Corporate.Travel.Controllers;
 
+import org.bouncycastle.jcajce.provider.asymmetric.mldsa.MLDSAKeyFactorySpi.Hash;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -12,12 +13,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import Booking.GDS.service.Corporate.Travel.Dto.BookingResponse;
 import Booking.GDS.service.Corporate.Travel.Dto.TravelDto;
 import Booking.GDS.service.Corporate.Travel.Entities.Employee;
 import Booking.GDS.service.Corporate.Travel.Entities.Travel;
 import Booking.GDS.service.Corporate.Travel.Repo.TravelRepository;
+import Booking.GDS.service.Corporate.Travel.Service.BookingService;
 import lombok.extern.slf4j.Slf4j;
 import Booking.GDS.service.Corporate.Travel.Repo.EmployeeRepository;
 
@@ -35,8 +39,11 @@ public class TravelController {
     @Autowired 
     private EmployeeRepository employeeRepository;
 
+    // @Autowired 
+    // private RestTemplate restTemplate;
+
     @Autowired 
-    private RestTemplate restTemplate;
+    BookingService bookingService;
 
 
     @CacheEvict(value = "allTravel", allEntries = true)
@@ -59,14 +66,12 @@ public class TravelController {
         t.setGrade(employee.getGrade());
         t.setDate(LocalDate.parse(travelDto.getDate()));
         t.setFromLocation(travelDto.getSource());
-        t.setTravelStatus("PENDING");
         t.setToLocation(travelDto.getDestination());
         t.setDistance(travelDto.getDistance());
         t.setMode(travelDto.getMode());
         t.setExpense(travelDto.getExpense());
         t.setEmpId(travelDto.getEmpId());
-
-        travelRepository.save(t);
+        t.setTravelStatus("PENDING");
 
         Map<String, Object> request = new HashMap<>();
 
@@ -80,14 +85,28 @@ public class TravelController {
         request.put("travelId",id);
 
         // Call another API
-        String url = "http://localhost:8081/api/validate";
+       try {
+            BookingResponse body = bookingService.validateBooking(request);
 
-        ResponseEntity<String> response =
-            restTemplate.postForEntity(url, request, String.class);
+            if(body.bookingValid())
+                t.setTravelStatus("APPROVED");
 
 
-        log.info("saving travel for employee {}",travelDto.getEmpId());
-        return "Travel booking Done";
+            log.debug("Response body: {}", body.bookingId());
+            
+            travelRepository.save(t);
+
+            log.info("saving travel for employee {}",travelDto.getEmpId());
+            return body.bookingFlag();
+
+        } catch (RestClientException e) {
+            log.error("Error while sending request to policy validation API", e);
+            return "Error in sending request";
+ 
+        } catch (Exception e) {
+            log.error("Unexpected error occurred", e);
+            return "Unexpected error";
+        }
     }
 
 
@@ -95,8 +114,8 @@ public class TravelController {
     public String ToggleStatus(@RequestBody Map<String, Object> body){
 
         boolean status = (boolean)body.get("bookingValid");
-        int id = (Integer)body.get("bookingId");
-        String flag = (String)body.get("bookingFlag");
+        String id = (String)body.get("bookingId");
+        // String flag = (String)body.get("bookingFlag");
 
         Optional<Travel> travel = travelRepository.findById(id);
 
@@ -127,7 +146,7 @@ public class TravelController {
     }
 
     @GetMapping("/getTravel/{id}")
-    public Travel getTravel(@PathVariable ("id") int id)
+    public Travel getTravel(@PathVariable ("id") String id)
     {
         log.info("fecthing travel for id : {}" ,id);
         Optional<Travel> t = travelRepository.findById(id);
@@ -142,7 +161,7 @@ public class TravelController {
 
     @CacheEvict(value = "allTravel", allEntries = true)
     @DeleteMapping("/remove/{id}")
-    public String DeleteTravel(@PathVariable ("id") int id){
+    public String DeleteTravel(@PathVariable ("id") String id){
 
         log.info("deleted travel for id : {}",id);
         Optional<Travel> t = travelRepository.findById(id);
@@ -174,3 +193,12 @@ public class TravelController {
 
 
 }
+
+// String url = "http://localhost:8081/api/policy-validations/booking";
+
+    // ResponseEntity<BookingResponse> response =
+    //         restTemplate.postForEntity(url, request,BookingResponse.class);
+
+    // // response type is changed from String.class to BookingResponse.class
+
+    // BookingResponse body = response.getBody();

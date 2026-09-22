@@ -13,7 +13,7 @@
 
         <!-- Only WARN and above -->
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>WARN</level>
+            <level>DEBUG</level>
         </filter>
 
     </appender>
@@ -29,7 +29,7 @@
     </appender>
 
     <!-- Root logger -->
-    <root level="INFO">
+    <root level="WARN">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
     </root>
