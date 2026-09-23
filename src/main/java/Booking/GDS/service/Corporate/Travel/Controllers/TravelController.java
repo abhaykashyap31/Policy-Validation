@@ -2,9 +2,11 @@ package Booking.GDS.service.Corporate.Travel.Controllers;
 
 import org.bouncycastle.jcajce.provider.asymmetric.mldsa.MLDSAKeyFactorySpi.Hash;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -18,12 +20,15 @@ import org.springframework.web.client.RestTemplate;
 
 import Booking.GDS.service.Corporate.Travel.Dto.BookingResponse;
 import Booking.GDS.service.Corporate.Travel.Dto.TravelDto;
+import Booking.GDS.service.Corporate.Travel.Dto.TravelValidationEvent;
 import Booking.GDS.service.Corporate.Travel.Entities.Employee;
 import Booking.GDS.service.Corporate.Travel.Entities.Travel;
 import Booking.GDS.service.Corporate.Travel.Repo.TravelRepository;
 import Booking.GDS.service.Corporate.Travel.Service.BookingService;
 import lombok.extern.slf4j.Slf4j;
 import Booking.GDS.service.Corporate.Travel.Repo.EmployeeRepository;
+
+
 
 import java.time.LocalDate;
 import java.util.*;
@@ -44,6 +49,12 @@ public class TravelController {
 
     @Autowired 
     BookingService bookingService;
+
+    @Autowired 
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Value("${kafka.topic.travel-request}")
+    private String travelRequestTopic;
 
 
     @CacheEvict(value = "allTravel", allEntries = true)
@@ -109,6 +120,50 @@ public class TravelController {
         }
     }
 
+    @CacheEvict(value = "allTravel", allEntries = true)
+    @PostMapping("/newBooking")
+    public ResponseEntity<String> newtravelRegister(@RequestBody TravelDto travelDto) {
+
+        Optional<Employee> emp = employeeRepository.findById(travelDto.getEmpId());
+        if (emp.isEmpty()) {
+            return ResponseEntity.badRequest().body("Cannot find employee");
+        }
+
+        Employee employee = emp.get();
+        String id = UUID.randomUUID().toString().replace("-", "");
+
+        Travel t = new Travel();
+        t.setId(id);
+        t.setGrade(employee.getGrade());
+        t.setDate(LocalDate.parse(travelDto.getDate()));
+        t.setFromLocation(travelDto.getSource());
+        t.setToLocation(travelDto.getDestination());
+        t.setDistance(travelDto.getDistance());
+        t.setMode(travelDto.getMode());
+        t.setExpense(travelDto.getExpense());
+        t.setEmpId(travelDto.getEmpId());
+        t.setTravelStatus("PENDING");
+
+        // Save locally first
+        travelRepository.save(t);
+
+        // Prepare Kafka event
+        TravelValidationEvent event = new TravelValidationEvent(
+                id,
+                travelDto.getSource(),
+                travelDto.getDestination(),
+                travelDto.getDistance(),
+                travelDto.getMode(),
+                travelDto.getExpense(),
+                travelDto.getDate(),
+                employee.getGrade()
+        );
+
+        // // Send to Kafka with travelId as message key for partition routing
+        kafkaTemplate.send(travelRequestTopic, id, event);
+
+        return ResponseEntity.accepted().body("Booking request submitted. Booking ID: " + id + " Status: PENDING");
+    }
 
     @PatchMapping("/status")
     public String ToggleStatus(@RequestBody Map<String, Object> body){
